@@ -1,0 +1,90 @@
+---
+- name: Update IPSK password in ISE Authorization Profile using CyberArk
+  hosts: localhost
+  gather_facts: no
+
+  tasks:
+    - name: Fetch ISE ERS password from CyberArk
+      uri:
+        url: "{{ cyberark_base_url }}/AIMWebService/api/Accounts?AppID={{ cyberark_app_id }}&Safe={{ cyberark_safe }}&Object={{ cyberark_ise_ers_object }}"
+        method: GET
+        validate_certs: yes
+        headers:
+          Accept: "application/json"
+      register: cyberark_ise_ers_response
+      no_log: true
+
+    - name: Fetch IPSK password from CyberArk
+      uri:
+        url: "{{ cyberark_base_url }}/AIMWebService/api/Accounts?AppID={{ cyberark_app_id }}&Safe={{ cyberark_safe }}&Object={{ cyberark_ipsk_object }}"
+        method: GET
+        validate_certs: yes
+        headers:
+          Accept: "application/json"
+      register: cyberark_ipsk_response
+      no_log: true
+
+    - name: Set passwords from CyberArk
+      set_fact:
+        ise_ers_password: "{{ cyberark_ise_ers_response.json.Content }}"
+        ipsk_password: "{{ cyberark_ipsk_response.json.Content }}"
+      no_log: true
+
+    - name: Find Authorization Profile by name
+      uri:
+        url: "https://{{ ise_host }}:{{ ise_port }}/ers/config/authorizationprofile?filter=name.EQ.{{ authorization_profile_name }}"
+        method: GET
+        user: "{{ ise_username }}"
+        password: "{{ ise_ers_password }}"
+        force_basic_auth: yes
+        validate_certs: no
+        headers:
+          Accept: "application/json"
+      register: profile_search
+      no_log: true
+
+    - name: Extract Authorization Profile ID
+      set_fact:
+        authorization_profile_id: "{{ profile_search.json.SearchResult.resources[0].id }}"
+
+    - name: Update IPSK profile
+      uri:
+        url: "https://{{ ise_host }}:{{ ise_port }}/ers/config/authorizationprofile/{{ authorization_profile_id }}"
+        method: PUT
+        user: "{{ ise_username }}"
+        password: "{{ ise_ers_password }}"
+        force_basic_auth: yes
+        validate_certs: no
+        headers:
+          Accept: "application/json"
+          Content-Type: "application/json"
+        body_format: json
+        body:
+          AuthorizationProfile:
+            id: "{{ authorization_profile_id }}"
+            name: "{{ authorization_profile_name }}"
+            description: "Updated by Ansible from CyberArk"
+            accessType: "ACCESS_ACCEPT"
+            advancedAttributes:
+              - leftHandSideDictionaryAttribue:
+                  AdvancedAttributeValueType: "AdvancedDictionaryAttribute"
+                  dictionaryName: "Cisco"
+                  attributeName: "cisco-av-pair"
+                rightHandSideAttribueValue:
+                  AdvancedAttributeValueType: "AttributeValue"
+                  value: "psk-mode=ascii"
+
+              - leftHandSideDictionaryAttribue:
+                  AdvancedAttributeValueType: "AdvancedDictionaryAttribute"
+                  dictionaryName: "Cisco"
+                  attributeName: "cisco-av-pair"
+                rightHandSideAttribueValue:
+                  AdvancedAttributeValueType: "AttributeValue"
+                  value: "psk={{ ipsk_password }}"
+        status_code:
+          - 200
+      no_log: true
+
+    - name: Show success message
+      debug:
+        msg: "ISE Authorization Profile {{ authorization_profile_name }} updated successfully"

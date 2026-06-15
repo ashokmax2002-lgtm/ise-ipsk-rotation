@@ -1,0 +1,11 @@
+ise_host: "10.0.0.200"
+ise_port: "9060"
+ise_username: "ersadmin"
+authorization_profile_name: "IPSK"
+
+cyberark_base_url: "https://cyberark.company.com"
+cyberark_app_id: "ISE-IPSK-Rotation"
+cyberark_safe: "Network-Secrets"
+
+cyberark_ise_ers_object: "ISE-ERS-PASSWORD"
+cyberark_ipsk_object: "ISE-IPSK-PASSWORD"
