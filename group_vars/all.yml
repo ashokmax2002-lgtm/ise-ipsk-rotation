@@ -1,4 +1,4 @@
-ise_host: "10.0.0.200"
+ise_host: "10.0.0.x"
 ise_port: "9060"
 ise_username: "ersadmin"
 authorization_profile_name: "IPSK"
